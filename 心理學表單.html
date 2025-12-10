@@ -1,0 +1,26 @@
+function createPsychSurvey() {
+  // 建立新表單
+  const form = FormApp.create('心理學認知簡易問卷');
+  form.setDescription('您好！這份問卷旨在了解您對心理學的認知與態度，填寫約 1–2 分鐘，所有答案僅用於統計分析，請依直覺回答。');
+
+  const questions = [
+    '我知道心理學是研究人類想法和行為的科學。',
+    '我知道心理學可以幫助我們理解自己和別人的行為。',
+    '我知道心理學研究不只是觀察，而是需要科學實驗或調查來驗證結果。',
+    '我了解一些心理學概念，例如人格、情緒或動機。',
+    '我能分辨心理學和看病或諮商的差別。',
+    '我知道心理學研究要用科學方法和證據。',
+    '我覺得心理學對生活有幫助。',
+    '我對心理學議題（例如情緒、壓力、人際關係）有興趣。',
+    '如果有機會，我願意學更多心理學知識。'
+  ];
+
+  questions.forEach(q => {
+    form.addMultipleChoiceItem()
+        .setTitle(q)
+        .setChoiceValues(['是', '否'])
+        .setRequired(true);
+  });
+
+  Logger.log('問卷已建立！表單網址: ' + form.getEditUrl());
+}
