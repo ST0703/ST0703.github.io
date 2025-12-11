@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Virtual Pet — Web</title>
+  <style>
+    body{font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif; background:#f7f7fb; color:#222; display:flex; align-items:center; justify-content:center; min-height:100vh;}
+    .card{width:360px; background:#fff; padding:18px; border-radius:12px; box-shadow:0 6px 20px rgba(20,20,50,0.08)}
+    pre.ascii{background:#f0f4ff; padding:8px; border-radius:8px; font-size:13px;}
+    .row{display:flex; gap:8px; flex-wrap:wrap}
+    button{flex:1;padding:8px;border-radius:8px;border:0;background:#5564f2;color:#fff;font-weight:600}
+    .muted{color:#666;font-size:13px}
+    .stat{display:flex;justify-content:space-between; margin:6px 0}
+    .small{font-size:12px}
+    select,input[type=text]{width:100%;padding:8px;border-radius:8px;border:1px solid #e3e7f7}
+  </style>
+</head>
+<body>
+  <div class="card" id="app">
+    <div id="setup">
+      <h2>建立你的電子寵物</h2>
+      <label class="small">名字</label>
+      <input id="name" type="text" value="Pico" />
+      <label class="small">種類</label>
+      <select id="species">
+        <option value="貓">🐱 貓</option>
+        <option value="狗">🐶 狗</option>
+        <option value="小龍">🐉 小龍</option>
+      </select>
+      <div style="height:10px"></div>
+      <div class="row">
+        <button id="newBtn">建立新寵物</button>
+        <button id="loadBtn" style="background:#22c55e">讀取存檔</button>
+      </div>
+    </div>
+
+    <div id="game" style="display:none">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div id="petName" style="font-weight:700;font-size:18px"></div>
+          <div id="petInfo" class="muted small"></div>
+        </div>
+        <div><button id="saveBtn" style="background:#f59e0b">存檔</button></div>
+      </div>
+
+      <pre id="art" class="ascii">ASCII</pre>
+
+      <div id="stats">
+        <!-- 狀態列 -->
+      </div>
+
+      <div class="row">
+        <button id="feed">餵食</button>
+        <button id="play">玩耍</button>
+        <button id="sleep">睡覺</button>
+      </div>
+
+      <div style="height:8px"></div>
+      <div class="row">
+        <button id="statusBtn" style="background:#64748b">查看狀態</button>
+        <button id="quit" style="background:#ef4444">離開</button>
+      </div>
+
+      <div style="height:10px"></div>
+      <div id="log" class="muted small"></div>
+    </div>
+
+  </div>
+
+<script>
+// ======= 資料模型 & ASCII 表情 =======
+const ART = {
+  '貓': {happy: ` /\_/\n( ^_^ )\n > ^ <`, normal:` /\_/\n( o_o )\n > ^ <`, sad:` /\_/\n( -_- )\n > ^ <`},
+  '狗': {happy:` /\___/\\n( ^_^  )\n / >🍖 >`, normal:` /\___/\\n( o_o  )\n /  >  >`, sad:` /\___/\\n( T_T  )\n /  >  >`},
+  '小龍': {happy:`  /\____/\  \n ( ^w^  ) \n  /  🔥 \\`, normal:`  /\____/\  \n ( o_o  ) \n  /  🔥 \\`, sad:`  /\____/\  \n ( ;_;  ) \n  /  🔥 \\`}
+}
+
+const SAVE_KEY = 'virtual_pet_save_v1'
+
+function makePet(name, species){
+  return {
+    name, species,
+    hunger:40, mood:60, energy:70, health:100,
+    age:0, level:1, exp:0,
+    lastTick: Date.now()
+  }
+}
+
+// ======= 遊戲邏輯 =======
+let pet = null
+let tickInterval = null
+
+function startTimer(){
+  if(tickInterval) clearInterval(tickInterval)
+  tickInterval = setInterval(()=>{
+    if(!pet) return
+    const now = Date.now()
+    if(now - pet.lastTick >= 10000){
+      pet.lastTick = now
+      pet.hunger = Math.min(pet.hunger + 5,100)
+      pet.energy = Math.max(pet.energy - 5,0)
+      pet.mood = Math.max(pet.mood - 3,0)
+      if(Math.random() < 0.05){ pet.health = Math.max(pet.health - 10,0); appendLog('⚠️ 寵物生病了！') }
+      pet.age += 1
+      addExp(3)
+      render()
+    }
+  },1000)
+}
+
+function addExp(amount){ pet.exp += amount; if(pet.exp >= 100){ pet.exp -= 100; pet.level += 1; appendLog(`🎉 ${pet.name} 升級到 Lv.${pet.level}！`) } }
+
+function feed(){ appendLog(`🍎 你餵食 ${pet.name}`); pet.hunger = Math.max(pet.hunger - 25,0); pet.mood = Math.min(pet.mood + 5,100); addExp(10); render() }
+function play(){ appendLog(`🎮 你和 ${pet.name} 玩耍`); if(pet.species==='貓'){ pet.mood = Math.min(pet.mood+25,100); pet.energy = Math.max(pet.energy-8,0); pet.hunger = Math.min(pet.hunger+8,100); addExp(15) }
+  else if(pet.species==='狗'){ pet.mood = Math.min(pet.mood+20,100); pet.energy = Math.max(pet.energy-20,0); pet.hunger = Math.min(pet.hunger+12,100); addExp(20)}
+  else { pet.mood = Math.min(pet.mood+15,100); pet.energy = Math.max(pet.energy-15,0); pet.hunger = Math.min(pet.hunger+10,100); addExp(15)}
+  render()
+}
+function sleepPet(){ appendLog(`😴 ${pet.name} 睡覺`); if(pet.species==='小龍'){ pet.energy = Math.min(pet.energy+50,100); pet.hunger = Math.min(pet.hunger+15,100); addExp(10) } else { pet.energy = Math.min(pet.energy+30,100); pet.hunger = Math.min(pet.hunger+10,100); addExp(5) } render() }
+
+function appendLog(s){ const el = document.getElementById('log'); el.textContent = s }
+
+function renderStats(){
+  const s = document.getElementById('stats'); s.innerHTML = '';
+  const addLine = (k,v)=>{ const div = document.createElement('div'); div.className='stat'; div.innerHTML = `<div class='muted'>${k}</div><div>${v}</div>`; s.appendChild(div) }
+  addLine('等級', `Lv.${pet.level} (${pet.exp}/100)`)
+  addLine('年齡', `${pet.age} 天`)
+  addLine('飢餓', `${pet.hunger}/100`)
+  addLine('心情', `${pet.mood}/100`)
+  addLine('能量', `${pet.energy}/100`)
+  addLine('健康', `${pet.health}/100`)
+}
+
+function render(){
+  if(!pet) return
+  document.getElementById('petName').textContent = pet.name
+  document.getElementById('petInfo').textContent = `${pet.species} • Lv.${pet.level}`
+  const art = getArt()
+  document.getElementById('art').textContent = art
+  renderStats()
+}
+
+function getArt(){
+  if(pet.health < 40 || pet.mood < 40) return ART[pet.species].sad
+  if(pet.mood > 70) return ART[pet.species].happy
+  return ART[pet.species].normal
+}
+
+function save(){ localStorage.setItem(SAVE_KEY, JSON.stringify(pet)); appendLog('💾 已存檔') }
+function load(){ const raw = localStorage.getItem(SAVE_KEY); if(!raw) return null; try{ return JSON.parse(raw) }catch(e){return null} }
+
+// ===== UI 綁定 =====
+document.getElementById('newBtn').addEventListener('click', ()=>{
+  const name = document.getElementById('name').value || 'Pico'
+  const species = document.getElementById('species').value
+  pet = makePet(name, species)
+  document.getElementById('setup').style.display='none'
+  document.getElementById('game').style.display='block'
+  appendLog('🆕 建立新寵物')
+  startTimer(); render()
+})
+
+document.getElementById('loadBtn').addEventListener('click', ()=>{
+  const data = load()
+  if(!data){ alert('沒有存檔'); return }
+  pet = data
+  document.getElementById('setup').style.display='none'
+  document.getElementById('game').style.display='block'
+  appendLog('📂 讀取存檔')
+  startTimer(); render()
+})
+
+document.getElementById('feed').addEventListener('click', ()=>{ feed() })
+document.getElementById('play').addEventListener('click', ()=>{ play() })
+document.getElementById('sleep').addEventListener('click', ()=>{ sleepPet() })
+document.getElementById('statusBtn').addEventListener('click', ()=>{ render(); appendLog('🔎 查看狀態') })
+document.getElementById('quit').addEventListener('click', ()=>{ if(tickInterval) clearInterval(tickInterval); pet=null; document.getElementById('setup').style.display='block'; document.getElementById('game').style.display='none'; appendLog('👋 離開遊戲') })
+document.getElementById('saveBtn').addEventListener('click', ()=>{ save() })
+
+// auto-load prompt
+if(localStorage.getItem(SAVE_KEY)){
+  // 不自動讀，但告知可讀檔
+  console.log('存檔可使用「讀取存檔」按鈕載入')
+}
+
+</script>
+</body>
+</html>
+
+2) Mobile 原型（React Native / Expo）
+建議使用 [Expo]：建立新專案 npx create-expo-app MyPet，然後把下面的內容貼到 App.js。 同時安裝依賴：expo install @react-native-async-storage/async-storage
+// App.js (React Native + Expo)
+import React, {useState, useEffect, useRef} from 'react';
+import { StyleSheet, Text, View, Button, TextInput, Alert, TouchableOpacity, ScrollView } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SAVE_KEY = '@virtual_pet_save_v1';
+
+const ART = {
+  '貓': {happy:'🐱', normal:'😺', sad:'😿'},
+  '狗': {happy:'🐶', normal:'🐕', sad:'😢'},
+  '小龍': {happy:'🐲', normal:'🐉', sad:'😵'}
+}
+
+function makePet(name, species){
+  return { name, species, hunger:40, mood:60, energy:70, health:100, age:0, level:1, exp:0, lastTick: Date.now() }
+}
+
+export default function App(){
+  const [pet, setPet] = useState(null);
+  const [name, setName] = useState('Pico');
+  const [species, setSpecies] = useState('貓');
+  const timerRef = useRef(null);
+
+  useEffect(()=>{ if(timerRef.current) clearInterval(timerRef.current); timerRef.current = setInterval(()=>{ if(!pet) return; const now=Date.now(); if(now - pet.lastTick >= 10000){ const copy = {...pet}; copy.lastTick = now; copy.hunger = Math.min(copy.hunger+5,100); copy.energy = Math.max(copy.energy-5,0); copy.mood = Math.max(copy.mood-3,0); if(Math.random()<0.05) copy.health = Math.max(copy.health-10,0); copy.age += 1; copy.exp += 3; if(copy.exp>=100){ copy.exp-=100; copy.level+=1; }
+        setPet(copy);
+      } },1000); return ()=>clearInterval(timerRef.current) }, [pet])
+
+  const save = async (p)=>{ await AsyncStorage.setItem(SAVE_KEY, JSON.stringify(p)); Alert.alert('已存檔') }
+  const load = async ()=>{ const raw = await AsyncStorage.getItem(SAVE_KEY); if(!raw) return Alert.alert('沒有存檔'); const data = JSON.parse(raw); setPet(data) }
+
+  const create = ()=>{ const p = makePet(name || 'Pico', species); setPet(p); }
+
+  const feed = ()=>{ if(!pet) return; const copy = {...pet}; copy.hunger = Math.max(copy.hunger-25,0); copy.mood = Math.min(copy.mood+5,100); copy.exp += 10; setPet(copy) }
+  const play = ()=>{ if(!pet) return; const copy = {...pet}; if(copy.species==='貓'){ copy.mood=Math.min(copy.mood+25,100); copy.energy=Math.max(copy.energy-8,0); copy.hunger=Math.min(copy.hunger+8,100); copy.exp+=15 }
+    else if(copy.species==='狗'){ copy.mood=Math.min(copy.mood+20,100); copy.energy=Math.max(copy.energy-20,0); copy.hunger=Math.min(copy.hunger+12,100); copy.exp+=20 }
+    else { copy.mood=Math.min(copy.mood+15,100); copy.energy=Math.max(copy.energy-15,0); copy.hunger=Math.min(copy.hunger+10,100); copy.exp+=15 }
+    setPet(copy)
+  }
+  const sleep = ()=>{ if(!pet) return; const copy = {...pet}; if(copy.species==='小龍'){ copy.energy = Math.min(copy.energy+50,100); copy.hunger=Math.min(copy.hunger+15,100); copy.exp+=10 } else { copy.energy = Math.min(copy.energy+30,100); copy.hunger = Math.min(copy.hunger+10,100); copy.exp+=5 } setPet(copy) }
+
+  if(!pet){
+    return (
+      <View style={styles.container}>
+        <Text style={styles.title}>建立電子寵物</Text>
+        <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="名字" />
+        <View style={{flexDirection:'row',gap:8}}>
+          <TouchableOpacity onPress={()=>setSpecies('貓')} style={[styles.chip, species==='貓' && styles.selected]}><Text>🐱 貓</Text></TouchableOpacity>
+          <TouchableOpacity onPress={()=>setSpecies('狗')} style={[styles.chip, species==='狗' && styles.selected]}><Text>🐶 狗</Text></TouchableOpacity>
+          <TouchableOpacity onPress={()=>setSpecies('小龍')} style={[styles.chip, species==='小龍' && styles.selected]}><Text>🐉 小龍</Text></TouchableOpacity>
+        </View>
+        <View style={{height:12}} />
+        <Button title="建立新寵物" onPress={create} />
+        <View style={{height:8}} />
+        <Button title="讀取存檔" onPress={load} />
+      </View>
+    )
+  }
+
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={{padding:20}}>
+      <Text style={styles.title}>{ART[pet.species][pet.mood>70?'happy': pet.mood<40?'sad':'normal']}  {pet.name}</Text>
+      <Text style={styles.small}>種類: {pet.species} • Lv.{pet.level} • 年齡: {pet.age} 天</Text>
+      <View style={{height:12}} />
+      <Text>飢餓: {pet.hunger}/100</Text>
+      <Text>心情: {pet.mood}/100</Text>
+      <Text>能量: {pet.energy}/100</Text>
+      <Text>健康: {pet.health}/100</Text>
+      <View style={{height:12}} />
+      <Button title="餵食" onPress={feed} />
+      <View style={{height:8}} />
+      <Button title="玩耍" onPress={play} />
+      <View style={{height:8}} />
+      <Button title="睡覺" onPress={sleep} />
+      <View style={{height:12}} />
+      <Button title="存檔" onPress={()=>save(pet)} />
+      <View style={{height:8}} />
+      <Button title="離開到建立畫面" onPress={()=>setPet(null)} />
+    </ScrollView>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: { flex:1, padding:20, backgroundColor:'#fff' },
+  title: { fontSize:24, fontWeight:'700', marginBottom:6 },
+  input: { borderWidth:1, borderColor:'#ddd', padding:10, borderRadius:8, marginBottom:10 },
+  chip: { padding:8, borderRadius:8, borderWidth:1, borderColor:'#ddd' },
+  selected: { backgroundColor:'#e6f0ff', borderColor:'#5b8cff' },
+  small: { color:'#666', marginBottom:8 }
+})
