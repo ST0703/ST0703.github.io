@@ -4,7 +4,6 @@ import random
 import json
 import os
 
-# ===== 午餐資料 =====
 LUNCH_OPTIONS = {
     "便當": ["雞腿便當", "排骨便當", "滷肉便當", "蔬菜便當"],
     "麵": ["牛肉麵", "乾拌麵", "拉麵", "炒麵"],
@@ -15,7 +14,6 @@ LUNCH_OPTIONS = {
 DATA_FILE = "lunch_record.json"
 
 
-# ===== 每天不重複紀錄 =====
 def load_record():
     if not os.path.exists(DATA_FILE):
         return {"date": str(date.today()), "used": []}
@@ -36,8 +34,6 @@ def save_record(record):
 
 record = load_record()
 
-
-# ===== UI =====
 root = tk.Tk()
 root.title("午餐建議機器人")
 root.geometry("420x550")
@@ -80,13 +76,13 @@ def get_lunch_suggestion(category):
     available = [f for f in options if f not in record["used"]]
 
     if not available:
-        return "🤖 今天的餐點都被我推薦過囉！"
+        return "今天的餐點都被推薦過了"
 
     choice = random.choice(available)
     record["used"].append(choice)
     save_record(record)
 
-    return f"🤖 今天午餐建議你吃：{choice}"
+    return f"今天午餐建議你吃：{choice}"
 
 
 def choose(category):
@@ -95,7 +91,6 @@ def choose(category):
     root.after(300, lambda: add_bubble(reply, "left"))
 
 
-# ===== 按鈕區 =====
 btn_frame = tk.Frame(root, bg="#f0f0f0")
 btn_frame.pack(pady=5)
 
@@ -112,6 +107,6 @@ for text in buttons:
     btn.pack(side="left", padx=4, pady=4)
 
 
-add_bubble("🤖 你好！直接點選下面的按鈕，我來幫你決定今天吃什麼～")
+add_bubble("點選下面按鈕取得午餐建議")
 
 root.mainloop()
