@@ -1,0 +1,117 @@
+import tkinter as tk
+from datetime import date
+import random
+import json
+import os
+
+# ===== 午餐資料 =====
+LUNCH_OPTIONS = {
+    "便當": ["雞腿便當", "排骨便當", "滷肉便當", "蔬菜便當"],
+    "麵": ["牛肉麵", "乾拌麵", "拉麵", "炒麵"],
+    "飯": ["咖哩飯", "炒飯", "丼飯", "滷肉飯"],
+    "速食": ["漢堡", "炸雞", "披薩", "薯條"]
+}
+
+DATA_FILE = "lunch_record.json"
+
+
+# ===== 每天不重複紀錄 =====
+def load_record():
+    if not os.path.exists(DATA_FILE):
+        return {"date": str(date.today()), "used": []}
+
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        record = json.load(f)
+
+    if record["date"] != str(date.today()):
+        record = {"date": str(date.today()), "used": []}
+
+    return record
+
+
+def save_record(record):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(record, f, ensure_ascii=False, indent=2)
+
+
+record = load_record()
+
+
+# ===== UI =====
+root = tk.Tk()
+root.title("午餐建議機器人")
+root.geometry("420x550")
+root.configure(bg="#f0f0f0")
+
+chat_frame = tk.Frame(root, bg="#f0f0f0")
+chat_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+
+def add_bubble(text, side="left"):
+    bubble = tk.Label(
+        chat_frame,
+        text=text,
+        wraplength=260,
+        justify="left",
+        font=("Arial", 11),
+        padx=10,
+        pady=6
+    )
+
+    if side == "left":
+        bubble.configure(bg="#ffffff")
+        bubble.pack(anchor="w", pady=4)
+    else:
+        bubble.configure(bg="#dcf8c6")
+        bubble.pack(anchor="e", pady=4)
+
+    chat_frame.update_idletasks()
+    chat_frame.yview_moveto(1)
+
+
+def get_lunch_suggestion(category):
+    if category == "隨機":
+        options = []
+        for foods in LUNCH_OPTIONS.values():
+            options.extend(foods)
+    else:
+        options = LUNCH_OPTIONS.get(category, [])
+
+    available = [f for f in options if f not in record["used"]]
+
+    if not available:
+        return "🤖 今天的餐點都被我推薦過囉！"
+
+    choice = random.choice(available)
+    record["used"].append(choice)
+    save_record(record)
+
+    return f"🤖 今天午餐建議你吃：{choice}"
+
+
+def choose(category):
+    add_bubble(category, "right")
+    reply = get_lunch_suggestion(category)
+    root.after(300, lambda: add_bubble(reply, "left"))
+
+
+# ===== 按鈕區 =====
+btn_frame = tk.Frame(root, bg="#f0f0f0")
+btn_frame.pack(pady=5)
+
+buttons = ["便當", "麵", "飯", "速食", "隨機"]
+
+for text in buttons:
+    btn = tk.Button(
+        btn_frame,
+        text=text,
+        width=8,
+        font=("Arial", 11),
+        command=lambda t=text: choose(t)
+    )
+    btn.pack(side="left", padx=4, pady=4)
+
+
+add_bubble("🤖 你好！直接點選下面的按鈕，我來幫你決定今天吃什麼～")
+
+root.mainloop()
