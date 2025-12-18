@@ -6,48 +6,70 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f0f0f0;
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #e5ddd5;
       margin: 0;
       padding: 20px;
     }
+
     .chat {
       max-width: 420px;
       margin: auto;
-      background: #ffffff;
-      border-radius: 10px;
+      background: #f7f7f7;
+      border-radius: 12px;
       padding: 10px;
       height: 450px;
       overflow-y: auto;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     }
+
     .bubble {
-      max-width: 70%;
+      max-width: 75%;
       padding: 8px 12px;
       margin: 6px 0;
-      border-radius: 12px;
-      clear: both;
+      border-radius: 16px;
       font-size: 14px;
+      line-height: 1.4;
+      clear: both;
+      position: relative;
     }
+
     .bot {
-      background: #eeeeee;
+      background: #ffffff;
       float: left;
+      border-bottom-left-radius: 4px;
     }
+
     .user {
-      background: #dcf8c6;
+      background: #9eea6a;
       float: right;
+      border-bottom-right-radius: 4px;
     }
+
     .buttons {
       max-width: 420px;
       margin: 10px auto 0;
       display: flex;
-      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 6px;
     }
+
     button {
       flex: 1;
-      margin: 0 4px;
       padding: 8px 0;
       font-size: 14px;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
+    }
+
+    .food-btn {
+      background: #ffffff;
+    }
+
+    .reset-btn {
+      background: #ffb3b3;
+      width: 100%;
     }
   </style>
 </head>
@@ -57,11 +79,12 @@
 <div class="chat" id="chat"></div>
 
 <div class="buttons">
-  <button onclick="choose('便當')">便當</button>
-  <button onclick="choose('麵')">麵</button>
-  <button onclick="choose('飯')">飯</button>
-  <button onclick="choose('速食')">速食</button>
-  <button onclick="choose('隨機')">隨機</button>
+  <button class="food-btn" onclick="choose('便當')">便當</button>
+  <button class="food-btn" onclick="choose('麵')">麵</button>
+  <button class="food-btn" onclick="choose('飯')">飯</button>
+  <button class="food-btn" onclick="choose('速食')">速食</button>
+  <button class="food-btn" onclick="choose('隨機')">隨機</button>
+  <button class="reset-btn" onclick="resetToday()">重新開始今天</button>
 </div>
 
 <script>
@@ -104,7 +127,7 @@
     const available = options.filter(f => !record.used.includes(f));
 
     if (available.length === 0) {
-      return "今天的餐點都被推薦過了";
+      return "今天的餐點都被推薦過了 😅";
     }
 
     const choice = available[Math.floor(Math.random() * available.length)];
@@ -117,6 +140,12 @@
     addBubble(category, "user");
     const reply = getSuggestion(category);
     setTimeout(() => addBubble(reply, "bot"), 300);
+  }
+
+  function resetToday() {
+    record = { date: today, used: [] };
+    localStorage.setItem("lunchRecord", JSON.stringify(record));
+    addBubble("已重新開始今天，可以再幫你想午餐 🍽️", "bot");
   }
 
   addBubble("點選下面按鈕，我幫你決定今天吃什麼", "bot");
